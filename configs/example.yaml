@@ -1,0 +1,53 @@
+# PocketConcierge Configuration Example
+# Copy this to config.yaml and customize for your network
+
+server:
+  port: 53 # DNS server port (53 is standard, use 5353 for testing)
+  address: "0.0.0.0" # Bind to all interfaces
+
+dns:
+  ttl: 300 # Default TTL for responses (seconds)
+  enable_recursion: true # Allow recursive queries
+  cache_size: 1000 # Number of cached responses
+
+# Upstream DNS servers (queries not found locally are forwarded here)
+upstream:
+  - "8.8.8.8:53" # Google DNS
+  - "1.1.1.1:53" # Cloudflare DNS
+  - "208.67.222.222:53" # OpenDNS (optional)
+
+# Logging level: debug, info, warn, error
+log_level: "info"
+
+# Local hostname mappings
+hosts:
+  # Example desktop
+  - hostname: "desktop.home"
+    ipv4:
+      - "192.168.1.100"
+
+  # Example laptop with both IPv4 and IPv6
+  - hostname: "laptop.home"
+    ipv4:
+      - "192.168.1.101"
+    ipv6:
+      - "fe80::1234:5678:90ab:cdef"
+
+  # Server with multiple IPs
+  - hostname: "homeserver.home"
+    ipv4:
+      - "192.168.1.50"
+      - "192.168.1.51" # Load balancing or backup
+
+  # Simple aliases
+  - hostname: "router.home"
+    ipv4:
+      - "192.168.1.1"
+
+  - hostname: "nas.home"
+    ipv4:
+      - "192.168.1.25"
+
+  - hostname: "laptop2.home"
+    ipv4:
+      - "192.168.1.102"
