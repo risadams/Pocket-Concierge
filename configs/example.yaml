@@ -1,53 +1,82 @@
-# PocketConcierge Configuration Example
-# Copy this to config.yaml and customize for your network
-
 server:
-  port: 53 # DNS server port (53 is standard, use 5353 for testing)
-  address: "0.0.0.0" # Bind to all interfaces
+  port: 8053
+  address: "127.0.0.1"
 
 dns:
-  ttl: 300 # Default TTL for responses (seconds)
-  enable_recursion: true # Allow recursive queries
-  cache_size: 1000 # Number of cached responses
+  ttl: 300
+  enable_recursion: true
+  cache_size: 10000
 
-# Upstream DNS servers (queries not found locally are forwarded here)
 upstream:
-  - "8.8.8.8:53" # Google DNS
-  - "1.1.1.1:53" # Cloudflare DNS
-  - "208.67.222.222:53" # OpenDNS (optional)
+  # ControlD DNS-over-HTTPS
+  - name: "ControlD DoH Primary"
+    address: "dns.controld.com"
+    protocol: "https"
+    port: 443
+    path: "/14a6bhxncz5"
+    verify: true
 
-# Logging level: debug, info, warn, error
+  # ControlD DNS-over-TLS
+  - name: "ControlD DoT Primary"
+    address: "14a6bhxncz5.dns.controld.com"
+    protocol: "tls"
+    port: 853
+    verify: true
+
+  # Fallback to traditional DNS
+  - name: "ControlD Fallback A"
+    address: "76.76.2.180"
+    protocol: "udp"
+    port: 53
+    verify: false
+
+  - name: "ControlD Fallback B"
+    address: "76.76.10.180"
+    protocol: "udp"
+    port: 53
+    verify: false
+
 log_level: "info"
 
-# Local hostname mappings
+# Configure the home DNS domain suffix
+# Hostnames without a domain will automatically get this suffix
+home_dns_domain: "home"
+
 hosts:
-  # Example desktop
-  - hostname: "desktop.home"
+  # Simple hostnames - will be resolved as "desktop.home"
+  - hostname: "desktop"
     ipv4:
       - "192.168.1.100"
 
-  # Example laptop with both IPv4 and IPv6
-  - hostname: "laptop.home"
+  # Mixed IPv4 + IPv6 - will be resolved as "laptop.home"
+  - hostname: "laptop"
     ipv4:
       - "192.168.1.101"
     ipv6:
       - "fe80::1234:5678:90ab:cdef"
+      - "2001:db8::1"
 
-  # Server with multiple IPs
-  - hostname: "homeserver.home"
+  # You can still use fully qualified domain names
+  - hostname: "server.local"
     ipv4:
       - "192.168.1.50"
-      - "192.168.1.51" # Load balancing or backup
 
-  # Simple aliases
-  - hostname: "router.home"
+  # Or use different domains
+  - hostname: "nas.lab"
+    ipv4:
+      - "192.168.1.52"
+
+  # Simple hostname - will be resolved as "router.home"
+  - hostname: "router"
     ipv4:
       - "192.168.1.1"
 
-  - hostname: "nas.home"
+  # Simple hostname - will be resolved as "printer.home"
+  - hostname: "printer"
     ipv4:
-      - "192.168.1.25"
+      - "192.168.1.53"
 
-  - hostname: "laptop2.home"
+  # Simple hostname - will be resolved as "camera.home"
+  - hostname: "camera"
     ipv4:
-      - "192.168.1.102"
+      - "192.168.1.54"

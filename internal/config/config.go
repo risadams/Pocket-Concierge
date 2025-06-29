@@ -11,11 +11,12 @@ import (
 
 // Config represents the complete PocketConcierge configuration
 type Config struct {
-	Server   ServerConfig     `yaml:"server"`
-	DNS      DNSConfig        `yaml:"dns"`
-	Hosts    []HostEntry      `yaml:"hosts"`
-	Upstream []UpstreamServer `yaml:"upstream"`
-	LogLevel string           `yaml:"log_level"`
+	Server        ServerConfig     `yaml:"server"`
+	DNS           DNSConfig        `yaml:"dns"`
+	Hosts         []HostEntry      `yaml:"hosts"`
+	Upstream      []UpstreamServer `yaml:"upstream"`
+	LogLevel      string           `yaml:"log_level"`
+	HomeDNSDomain string           `yaml:"home_dns_domain"`
 }
 
 // ServerConfig defines server-specific settings
@@ -75,8 +76,9 @@ func DefaultConfig() *Config {
 				Verify:   true,
 			},
 		},
-		LogLevel: "info",
-		Hosts:    []HostEntry{},
+		LogLevel:      "info",
+		HomeDNSDomain: "home",
+		Hosts:         []HostEntry{},
 	}
 }
 
@@ -210,6 +212,11 @@ func (c *Config) Validate() error {
 	}
 	if !validLevels[c.LogLevel] {
 		return fmt.Errorf("invalid log level: %s (must be debug, info, warn, or error)", c.LogLevel)
+	}
+
+	// Validate home DNS domain
+	if c.HomeDNSDomain == "" {
+		return fmt.Errorf("home_dns_domain cannot be empty")
 	}
 
 	return nil
