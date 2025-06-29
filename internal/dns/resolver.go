@@ -1,49 +1,37 @@
 package dns
 
 import (
-	"strings"
+	"log"
+	"time"
 
 	"github.com/risadams/Pocket-Concierge/internal/config"
 )
 
 // Resolver handles local hostname resolution
 type Resolver struct {
-	config *config.Config
+	config    *config.Config
+	hostCache *HostCache
 }
 
 // NewResolver creates a new resolver
 func NewResolver(cfg *config.Config) *Resolver {
 	return &Resolver{
-		config: cfg,
+		config:    cfg,
+		hostCache: NewHostCache(cfg),
 	}
 }
 
-// ResolveLocal attempts to resolve a hostname using local configuration
+// ResolveLocal attempts to resolve a hostname using cached lookup
 func (r *Resolver) ResolveLocal(hostname string) (*config.HostEntry, bool) {
-	// Normalize hostname
-	hostname = strings.ToLower(strings.TrimSpace(hostname))
-
-	// Direct lookup
-	if host, found := r.config.GetHostByName(hostname); found {
-		return host, true
-	}
-
-	// Try with .home suffix if not present
-	if !strings.HasSuffix(hostname, ".home") {
-		if host, found := r.config.GetHostByName(hostname + ".home"); found {
-			return host, true
+	// Add timing check
+	start := time.Now()
+	defer func() {
+		if time.Since(start) > 100*time.Microsecond {
+			log.Printf("🐌 ResolveLocal slow: %s took %v", hostname, time.Since(start))
 		}
-	}
+	}()
 
-	// Try without .home suffix if present
-	if strings.HasSuffix(hostname, ".home") {
-		baseHostname := strings.TrimSuffix(hostname, ".home")
-		if host, found := r.config.GetHostByName(baseHostname); found {
-			return host, true
-		}
-	}
-
-	return nil, false
+	return r.hostCache.Lookup(hostname)
 }
 
 // GetAllHosts returns all configured hosts

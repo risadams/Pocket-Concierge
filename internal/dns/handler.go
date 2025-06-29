@@ -30,44 +30,72 @@ func NewHandler(cfg *config.Config) *Handler {
 	}
 }
 
-// ServeDNS handles incoming DNS queries (implements dns.Handler interface)
 func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
-	// Create response message
+	requestStart := time.Now()
+	defer func() {
+		totalTime := time.Since(requestStart)
+		if totalTime > 10*time.Millisecond {
+			log.Printf("🐌 SLOW REQUEST: Total time %v", totalTime)
+		}
+	}()
+
 	response := &dns.Msg{}
 	response.SetReply(r)
-	response.Authoritative = false
-	response.RecursionAvailable = h.config.DNS.EnableRecursion
+	response.Authoritative = true
 
-	// Process each question
 	for _, question := range r.Question {
+		questionStart := time.Now()
 		log.Printf("🔍 Query: %s %s", dns.TypeToString[question.Qtype], question.Name)
 
 		// Try local resolution first
-		if answers := h.resolveLocally(question); len(answers) > 0 {
-			response.Answer = append(response.Answer, answers...)
-			response.Authoritative = true
-			log.Printf("✅ Local resolve: %s -> %d answers", question.Name, len(answers))
-		} else if h.config.DNS.EnableRecursion {
-			// Forward to upstream DNS
-			if answers := h.forwardUpstream(question, r); len(answers) > 0 {
-				response.Answer = append(response.Answer, answers...)
-				log.Printf("🔄 Upstream resolve: %s -> %d answers", question.Name, len(answers))
-			} else {
-				log.Printf("❌ No resolution: %s", question.Name)
+		localStart := time.Now()
+		if localAnswers := h.resolveLocally(question); len(localAnswers) > 0 {
+			localTime := time.Since(localStart)
+			if localTime > 1*time.Millisecond {
+				log.Printf("🐌 SLOW LOCAL: %s took %v", question.Name, localTime)
 			}
-		} else {
-			log.Printf("🚫 Recursion disabled: %s", question.Name)
+			response.Answer = append(response.Answer, localAnswers...)
+			log.Printf("✅ Local resolve: %s -> %d answers (took %v)", question.Name, len(localAnswers), localTime)
+			continue
 		}
+
+		// If not found locally and recursion enabled, forward upstream
+		if h.config.DNS.EnableRecursion {
+			upstreamStart := time.Now()
+			if upstreamAnswers := h.forwardUpstream(question, r); len(upstreamAnswers) > 0 {
+				upstreamTime := time.Since(upstreamStart)
+				response.Answer = append(response.Answer, upstreamAnswers...)
+				log.Printf("🔄 Upstream resolve: %s -> %d answers (took %v)", question.Name, len(upstreamAnswers), upstreamTime)
+				continue
+			}
+		}
+
+		questionTime := time.Since(questionStart)
+		log.Printf("❌ No resolution: %s (took %v)", question.Name, questionTime)
 	}
 
-	// Send response
+	writeStart := time.Now()
 	if err := w.WriteMsg(response); err != nil {
 		log.Printf("❌ Failed to write response: %v", err)
 	}
+	writeTime := time.Since(writeStart)
+
+	totalTime := time.Since(requestStart)
+	if writeTime > 1*time.Millisecond {
+		log.Printf("🐌 SLOW WRITE: Response write took %v", writeTime)
+	}
+	log.Printf("📊 Request completed in %v", totalTime)
 }
 
 // resolveLocally attempts to resolve the query using local configuration
 func (h *Handler) resolveLocally(question dns.Question) []dns.RR {
+	start := time.Now()
+	defer func() {
+		if time.Since(start) > 5*time.Millisecond {
+			log.Printf("⚠️ Slow local resolve: %s took %v", question.Name, time.Since(start))
+		}
+	}()
+
 	var answers []dns.RR
 
 	// Remove trailing dot and convert to lowercase
