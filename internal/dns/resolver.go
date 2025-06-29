@@ -1,9 +1,7 @@
 package dns
 
 import (
-	"log"
-	"time"
-
+	"github.com/miekg/dns"
 	"github.com/risadams/Pocket-Concierge/internal/config"
 )
 
@@ -21,16 +19,13 @@ func NewResolver(cfg *config.Config) *Resolver {
 	}
 }
 
-// ResolveLocal attempts to resolve a hostname using cached lookup
-func (r *Resolver) ResolveLocal(hostname string) (*config.HostEntry, bool) {
-	// Add timing check
-	start := time.Now()
-	defer func() {
-		if time.Since(start) > 100*time.Microsecond {
-			log.Printf("🐌 ResolveLocal slow: %s took %v", hostname, time.Since(start))
-		}
-	}()
+// ResolveFast attempts to resolve a hostname using pre-built DNS records
+func (r *Resolver) ResolveFast(hostname string, qtype uint16) []dns.RR {
+	return r.hostCache.LookupRecords(hostname, qtype)
+}
 
+// ResolveLocal attempts to resolve a hostname using cached lookup (legacy compatibility)
+func (r *Resolver) ResolveLocal(hostname string) (*config.HostEntry, bool) {
 	return r.hostCache.Lookup(hostname)
 }
 
@@ -42,4 +37,5 @@ func (r *Resolver) GetAllHosts() []config.HostEntry {
 // AddHost adds a new host entry (for future dynamic configuration)
 func (r *Resolver) AddHost(host config.HostEntry) {
 	r.config.Hosts = append(r.config.Hosts, host)
+	r.hostCache.Rebuild(r.config) // Rebuild cache when adding hosts
 }

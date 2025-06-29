@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 
 	"github.com/miekg/dns"
 	"github.com/risadams/Pocket-Concierge/internal/config"
@@ -17,14 +18,17 @@ type Server struct {
 	server     *dns.Server
 }
 
-// NewServer creates a new PocketConcierge server
+// NewServer creates a new PocketConcierge server with optimized settings
 func NewServer(cfg *config.Config) *Server {
 	handler := dnshandler.NewHandler(cfg)
 
 	server := &dns.Server{
-		Addr:    fmt.Sprintf("%s:%d", cfg.Server.Address, cfg.Server.Port),
-		Net:     "udp",
-		Handler: handler,
+		Addr:         fmt.Sprintf("%s:%d", cfg.Server.Address, cfg.Server.Port),
+		Net:          "udp",
+		Handler:      handler,
+		ReadTimeout:  3 * time.Second, // Reduced timeout
+		WriteTimeout: 3 * time.Second, // Reduced timeout
+		UDPSize:      65535,           // Maximum UDP packet size
 	}
 
 	return &Server{

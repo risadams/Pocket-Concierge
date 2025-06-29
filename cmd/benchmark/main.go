@@ -141,6 +141,10 @@ func getTestQueries(testType string) []string {
 			"homeserver.home",
 			"nas.home",
 			"ipv6-only.home",
+			"router.home",
+			"printer.home",
+			"camera.home",
+			"switch.home",
 		}
 	case "upstream":
 		return []string{
@@ -152,6 +156,8 @@ func getTestQueries(testType string) []string {
 			"cloudflare.com",
 			"amazon.com",
 			"microsoft.com",
+			"facebook.com",
+			"twitter.com",
 		}
 	case "mixed":
 		return []string{
@@ -163,6 +169,8 @@ func getTestQueries(testType string) []string {
 			"stackoverflow.com",
 			"nas.home",
 			"reddit.com",
+			"router.home",
+			"youtube.com",
 		}
 	case "baseline":
 		return []string{
