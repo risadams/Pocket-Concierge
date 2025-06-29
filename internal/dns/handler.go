@@ -12,9 +12,10 @@ import (
 
 // Handler manages DNS request processing
 type Handler struct {
-	config   *config.Config
-	resolver *Resolver
-	client   *dns.Client
+	config       *config.Config
+	resolver     *Resolver
+	client       *dns.Client
+	secureClient *SecureClient
 }
 
 // NewHandler creates a new DNS handler
@@ -25,6 +26,7 @@ func NewHandler(cfg *config.Config) *Handler {
 		client: &dns.Client{
 			Timeout: 5 * time.Second,
 		},
+		secureClient: NewSecureClient(),
 	}
 }
 
@@ -106,22 +108,24 @@ func (h *Handler) resolveLocally(question dns.Question) []dns.RR {
 	return answers
 }
 
-// forwardUpstream forwards the query to upstream DNS servers
+// Update forwardUpstream method
 func (h *Handler) forwardUpstream(question dns.Question, original *dns.Msg) []dns.RR {
-	// Create a new query with just this question
 	query := &dns.Msg{}
 	query.SetQuestion(question.Name, question.Qtype)
 	query.RecursionDesired = true
 
 	// Try each upstream server
 	for _, upstream := range h.config.Upstream {
-		response, _, err := h.client.Exchange(query, upstream)
+		log.Printf("🔒 Trying %s via %s", upstream.Address, upstream.Protocol)
+
+		response, err := h.secureClient.Query(query, upstream)
 		if err != nil {
-			log.Printf("⚠️ Upstream %s failed: %v", upstream, err)
+			log.Printf("⚠️ Upstream %s (%s) failed: %v", upstream.Address, upstream.Protocol, err)
 			continue
 		}
 
 		if response != nil && len(response.Answer) > 0 {
+			log.Printf("✅ %s (%s) resolved with %d answers", upstream.Address, upstream.Protocol, len(response.Answer))
 			return response.Answer
 		}
 	}

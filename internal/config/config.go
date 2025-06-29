@@ -11,11 +11,11 @@ import (
 
 // Config represents the complete PocketConcierge configuration
 type Config struct {
-	Server   ServerConfig `yaml:"server"`
-	DNS      DNSConfig    `yaml:"dns"`
-	Hosts    []HostEntry  `yaml:"hosts"`
-	Upstream []string     `yaml:"upstream"`
-	LogLevel string       `yaml:"log_level"`
+	Server   ServerConfig     `yaml:"server"`
+	DNS      DNSConfig        `yaml:"dns"`
+	Hosts    []HostEntry      `yaml:"hosts"`
+	Upstream []UpstreamServer `yaml:"upstream"`
+	LogLevel string           `yaml:"log_level"`
 }
 
 // ServerConfig defines server-specific settings
@@ -29,6 +29,15 @@ type DNSConfig struct {
 	TTL             int  `yaml:"ttl"`
 	EnableRecursion bool `yaml:"enable_recursion"`
 	CacheSize       int  `yaml:"cache_size"`
+}
+
+type UpstreamServer struct {
+	Name     string `yaml:"name,omitempty"` // Optional friendly name
+	Address  string `yaml:"address"`        // Server address
+	Protocol string `yaml:"protocol"`       // "udp", "tcp", "tls", "https", "quic"
+	Port     int    `yaml:"port,omitempty"` // Optional custom port
+	Path     string `yaml:"path,omitempty"` // For DoH: /dns-query
+	Verify   bool   `yaml:"verify"`         // TLS certificate verification
 }
 
 // HostEntry represents a hostname to IP mapping
@@ -50,9 +59,21 @@ func DefaultConfig() *Config {
 			EnableRecursion: true,
 			CacheSize:       1000,
 		},
-		Upstream: []string{
-			"8.8.8.8:53", // Google DNS
-			"1.1.1.1:53", // Cloudflare DNS
+		Upstream: []UpstreamServer{
+			{
+				Name:     "Cloudflare DoH",
+				Address:  "1.1.1.1",
+				Protocol: "https",
+				Path:     "/dns-query",
+				Verify:   true,
+			},
+			{
+				Name:     "Google DoT",
+				Address:  "8.8.8.8",
+				Protocol: "tls",
+				Port:     853,
+				Verify:   true,
+			},
 		},
 		LogLevel: "info",
 		Hosts:    []HostEntry{},
@@ -122,9 +143,38 @@ func (c *Config) Validate() error {
 	}
 
 	// Validate upstream servers
-	for _, upstream := range c.Upstream {
-		if _, _, err := net.SplitHostPort(upstream); err != nil {
-			return fmt.Errorf("invalid upstream server format: %s", upstream)
+	for i := range c.Upstream { // Use range with index to modify in place
+		upstream := &c.Upstream[i] // Get pointer to modify original
+
+		if upstream.Address == "" {
+			return fmt.Errorf("upstream server %d: address cannot be empty", i)
+		}
+
+		// Validate protocol
+		validProtocols := map[string]bool{
+			"udp": true, "tcp": true, "tls": true, "https": true, "quic": true,
+		}
+		if !validProtocols[upstream.Protocol] {
+			return fmt.Errorf("upstream server %d: invalid protocol '%s' (must be udp, tcp, tls, https, or quic)", i, upstream.Protocol)
+		}
+
+		// Set default ports if not specified
+		if upstream.Port == 0 {
+			switch upstream.Protocol {
+			case "udp", "tcp":
+				upstream.Port = 53
+			case "tls":
+				upstream.Port = 853
+			case "https":
+				upstream.Port = 443 // This is the key fix!
+			case "quic":
+				upstream.Port = 853
+			}
+		}
+
+		// Set default HTTPS path
+		if upstream.Protocol == "https" && upstream.Path == "" {
+			upstream.Path = "/dns-query"
 		}
 	}
 
