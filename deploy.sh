@@ -6,8 +6,38 @@
 set -e
 
 PROJECT_NAME="pocketconcierge"
-DEFAULT_PORT="8053"
+DEFAULT_PORT="0"  # 0 means auto-detect from config
 DEFAULT_CONFIG="config.yaml"
+
+# Function to extract port from config file
+get_config_port() {
+    local config_file="$1"
+    local default_port=8053
+    
+    if [[ ! -f "$config_file" ]]; then
+        print_warning "Config file not found: $config_file, using default port $default_port"
+        echo "$default_port"
+        return
+    fi
+    
+    # Try to extract port using awk
+    local port=$(awk '
+        /^server:/ { in_server=1; next }
+        in_server && /^[[:space:]]*port:/ { 
+            gsub(/[[:space:]]*port:[[:space:]]*/, ""); 
+            print $1; 
+            exit 
+        }
+        /^[[:alpha:]]/ && !/^[[:space:]]/ { in_server=0 }
+    ' "$config_file")
+    
+    if [[ -n "$port" && "$port" =~ ^[0-9]+$ ]]; then
+        echo "$port"
+    else
+        print_warning "Could not parse port from config file, using default port $default_port"
+        echo "$default_port"
+    fi
+}
 
 # Colors for output
 RED='\033[0;31m'
@@ -85,6 +115,11 @@ deploy() {
                 ;;
         esac
     done
+    
+    # Auto-detect port from config if using default
+    if [[ "$port" == "0" ]]; then
+        port=$(get_config_port "$config")
+    fi
 
     print_info "Deploying PocketConcierge..."
 
@@ -101,8 +136,11 @@ deploy() {
         make docker-build
     fi
 
+    # Get port from config for internal container binding
+    config_port=$(get_config_port "$config")
+
     # Prepare run arguments
-    run_args="-p ${port}:8053/udp -p ${port}:8053/tcp --name $PROJECT_NAME"
+    run_args="-p ${port}:${config_port}/udp -p ${port}:${config_port}/tcp --name $PROJECT_NAME"
     
     if [ "$daemon" = true ]; then
         run_args="$run_args -d --restart unless-stopped"

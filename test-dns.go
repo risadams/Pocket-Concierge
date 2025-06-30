@@ -7,19 +7,35 @@ import (
 	"strings"
 
 	"github.com/miekg/dns"
+	"github.com/risadams/Pocket-Concierge/internal/config"
 )
+
+func getDefaultServer() string {
+	// Try to load config to get the port
+	cfg, err := config.LoadConfig("config.yaml")
+	if err != nil {
+		// Try example config
+		cfg, err = config.LoadConfig("configs/example.yaml")
+		if err != nil {
+			// Use default port
+			return "127.0.0.1:8053"
+		}
+	}
+	return fmt.Sprintf("127.0.0.1:%d", cfg.Server.Port)
+}
 
 func main() {
 	if len(os.Args) < 2 {
+		defaultServer := getDefaultServer()
 		fmt.Println("Usage: go run test-dns.go <hostname> [server:port] [record-type]")
-		fmt.Println("Example: go run test-dns.go ris-laptop.home 127.0.0.1:8053")
-		fmt.Println("         go run test-dns.go ris-laptop.home 127.0.0.1:8053 AAAA")
-		fmt.Println("         go run test-dns.go ris-laptop.home 127.0.0.1:8053 BOTH")
+		fmt.Printf("Example: go run test-dns.go ris-laptop.home %s\n", defaultServer)
+		fmt.Printf("         go run test-dns.go ris-laptop.home %s AAAA\n", defaultServer)
+		fmt.Printf("         go run test-dns.go ris-laptop.home %s BOTH\n", defaultServer)
 		os.Exit(1)
 	}
 
 	hostname := os.Args[1]
-	server := "127.0.0.1:8053"
+	server := getDefaultServer()
 	recordType := "A"
 
 	if len(os.Args) > 2 {

@@ -43,6 +43,8 @@ func main() {
 		fmt.Println("  go run cmd/benchmark/main.go 127.0.0.1:8053 1000 10 upstream")
 		fmt.Println("  go run cmd/benchmark/main.go 127.0.0.1:8053 1000 10 mixed")
 		fmt.Println("  go run cmd/benchmark/main.go 8.8.8.8:53 1000 10 baseline")
+		fmt.Println("")
+		fmt.Println("Note: Use benchmark.ps1 script to automatically use port from config.yaml")
 		os.Exit(1)
 	}
 

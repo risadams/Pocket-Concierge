@@ -71,6 +71,10 @@ A lightweight, high-performance DNS server designed specifically for home networ
 Test your DNS server with the included test utility:
 
 ```bash
+# Uses port from config.yaml automatically
+go run test-dns.go laptop.home
+
+# Or specify custom server and port
 go run test-dns.go laptop.home 127.0.0.1:8053
 ```
 
@@ -80,7 +84,7 @@ Pocket Concierge uses a YAML configuration file. Here's a basic example:
 
 ```yaml
 server:
-  port: 8053
+  port: 8053  # All deployment scripts automatically use this port
   address: "127.0.0.1"
 
 dns:
@@ -127,7 +131,7 @@ hosts:
 
 #### Server Settings
 
-- `server.port`: Port to listen on (default: 8053)
+- `server.port`: Port to listen on (default: 8053). All deployment scripts (Docker, Makefile, benchmarks) automatically read this value.
 - `server.address`: IP address to bind to (default: 127.0.0.1)
 
 #### DNS Settings
@@ -148,6 +152,30 @@ Configure multiple upstream DNS servers with different protocols:
 
 - `home_dns_domain`: Default domain suffix for simple hostnames
 - `hosts`: Array of local hostname mappings
+
+## 🔧 Port Configuration
+
+All deployment and testing scripts automatically read the port from your `config.yaml` file. When you change the port in the configuration, it's automatically used by:
+
+- **Docker Compose**: Reads port via environment variables
+- **Makefile**: Extracts port using `awk` and uses it for container mappings  
+- **Deployment scripts**: `deploy.ps1` and `deploy.sh` parse config and use the correct port
+- **Benchmark script**: `benchmark.ps1` reads config to test the right port
+- **Test utilities**: `test-dns.go` defaults to config port if no server specified
+
+### Manual Port Sync for Docker Compose
+
+If needed, you can manually sync the port to environment variables:
+
+```bash
+# Windows PowerShell
+.\set-port-env.ps1
+
+# Linux/macOS
+./set-port-env.sh
+```
+
+These scripts update the `.env` file with `POCKET_CONCIERGE_PORT` from your config.
 
 ## 🛠️ Development
 
@@ -254,7 +282,8 @@ Now you can access your devices using friendly names:
 ### Common Issues
 
 1. **Port 53 already in use**
-   - Change the port in config.yaml to something else (e.g., 8053)
+   - Change the port in config.yaml to something else (e.g., 9053)
+   - All deployment scripts automatically use the configured port
    - Stop other DNS services if running on port 53
 
 2. **DNS queries not being resolved**
@@ -262,7 +291,12 @@ Now you can access your devices using friendly names:
    - Verify the server is running and listening on the correct port
    - Test with the included test utility
 
-3. **Upstream DNS failures**
+3. **Docker port conflicts**
+   - Update the port in config.yaml - Docker Compose will use it automatically
+   - Or set POCKET_CONCIERGE_PORT environment variable
+   - Run `./set-port-env.ps1` (Windows) or `./set-port-env.sh` (Linux) to sync ports
+
+4. **Upstream DNS failures**
    - Check your internet connection
    - Verify upstream server configurations
    - Try fallback to traditional DNS servers
@@ -278,14 +312,17 @@ log_level: "debug"
 ### Network Testing
 
 ```bash
-# Test local resolution
-go run test-dns.go laptop.home 127.0.0.1:8053
+# Test local resolution (automatically uses port from config.yaml)
+go run test-dns.go laptop.home
 
-# Test external resolution
-go run test-dns.go google.com 127.0.0.1:8053
+# Test external resolution 
+go run test-dns.go google.com
 
 # Test IPv6
-go run test-dns.go laptop.home 127.0.0.1:8053 AAAA
+go run test-dns.go laptop.home "" AAAA
+
+# Or specify custom server and port explicitly
+go run test-dns.go laptop.home 127.0.0.1:8053
 ```
 
 ## 🔒 Security Features

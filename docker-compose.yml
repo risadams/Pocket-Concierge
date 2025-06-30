@@ -11,8 +11,8 @@ services:
     container_name: pocketconcierge
     restart: unless-stopped
     ports:
-      - "8053:8053/udp"
-      - "8053:8053/tcp"
+      - "${POCKET_CONCIERGE_PORT:-8053}:${POCKET_CONCIERGE_PORT:-8053}/udp"
+      - "${POCKET_CONCIERGE_PORT:-8053}:${POCKET_CONCIERGE_PORT:-8053}/tcp"
     volumes:
       # Use main config file with 0.0.0.0 binding for Docker
       - ./config.yaml:/app/config.yaml:ro
@@ -24,7 +24,7 @@ services:
     environment:
       - TZ=UTC
     healthcheck:
-      test: ["CMD", "dig", "@127.0.0.1", "-p", "8053", "google.com", "+short"]
+      test: ["CMD", "dig", "@127.0.0.1", "-p", "${POCKET_CONCIERGE_PORT:-8053}", "google.com", "+short"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -8,6 +8,10 @@ VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "v0.
 BUILD_TIME := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
+# Configuration
+CONFIG_FILE ?= config.yaml
+DNS_PORT ?= $(shell awk '/^server:/{in_server=1; next} in_server && /^[[:space:]]*port:/{gsub(/[[:space:]]*port:[[:space:]]*/, ""); print $$1; exit} /^[[:alpha:]]/ && !/^[[:space:]]/{in_server=0}' $(CONFIG_FILE) 2>/dev/null || echo "8053")
+
 # Docker parameters
 DOCKER_IMAGE := $(PROJECT_NAME)
 DOCKER_TAG := $(VERSION)
@@ -122,29 +126,29 @@ docker-build-no-cache: ## Build Docker image without cache
 
 .PHONY: docker-run
 docker-run: ## Run Docker container with default config
-		@echo "🚀 Running $(DOCKER_IMAGE):latest..."
+		@echo "🚀 Running $(DOCKER_IMAGE):latest on port $(DNS_PORT)..."
 		docker run --rm -it \
-			-p 8053:8053/udp \
-			-p 8053:8053/tcp \
+			-p $(DNS_PORT):$(DNS_PORT)/udp \
+			-p $(DNS_PORT):$(DNS_PORT)/tcp \
 			--name $(PROJECT_NAME) \
 			$(DOCKER_IMAGE):latest
 
 .PHONY: docker-run-daemon
 docker-run-daemon: ## Run Docker container as daemon
-		@echo "🚀 Starting $(DOCKER_IMAGE):latest as daemon..."
+		@echo "🚀 Starting $(DOCKER_IMAGE):latest as daemon on port $(DNS_PORT)..."
 		docker run -d \
-			-p 8053:8053/udp \
-			-p 8053:8053/tcp \
+			-p $(DNS_PORT):$(DNS_PORT)/udp \
+			-p $(DNS_PORT):$(DNS_PORT)/tcp \
 			--name $(PROJECT_NAME) \
 			--restart unless-stopped \
 			$(DOCKER_IMAGE):latest
 
 .PHONY: docker-run-custom
 docker-run-custom: ## Run Docker container with custom config (CONFIG=path/to/config.yaml)
-		@echo "🚀 Running $(DOCKER_IMAGE):latest with custom config..."
+		@echo "🚀 Running $(DOCKER_IMAGE):latest with custom config on port $(DNS_PORT)..."
 		docker run --rm -it \
-			-p 8053:8053/udp \
-			-p 8053:8053/tcp \
+			-p $(DNS_PORT):$(DNS_PORT)/udp \
+			-p $(DNS_PORT):$(DNS_PORT)/tcp \
 			-v "$(shell pwd)/$(CONFIG):/app/config.yaml:ro" \
 			--name $(PROJECT_NAME) \
 			$(DOCKER_IMAGE):latest

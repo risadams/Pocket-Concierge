@@ -7,7 +7,7 @@ param(
     [string]$Command = "help",
     
     [Parameter()]
-    [int]$Port = 8053,
+    [int]$Port = 0,  # 0 means auto-detect from config
     
     [Parameter()]
     [string]$Config = "config.yaml",
@@ -15,6 +15,42 @@ param(
     [Parameter()]
     [switch]$Daemon
 )
+
+$PROJECT_NAME = "pocketconcierge"
+
+# Function to extract port from config file
+function Get-ConfigPort {
+    param(
+        [string]$ConfigPath
+    )
+    
+    $DefaultPort = 8053
+    
+    if (-not (Test-Path $ConfigPath)) {
+        Write-Warning "Config file not found: $ConfigPath, using default port $DefaultPort"
+        return $DefaultPort
+    }
+    
+    try {
+        $ConfigContent = Get-Content $ConfigPath -Raw
+        if ($ConfigContent -match "server:\s*\n\s*port:\s*(\d+)") {
+            return [int]$Matches[1]
+        }
+        else {
+            Write-Warning "Could not parse port from config file, using default port $DefaultPort"
+            return $DefaultPort
+        }
+    }
+    catch {
+        Write-Warning "Error reading config file: $_. Using default port $DefaultPort"
+        return $DefaultPort
+    }
+}
+
+# Auto-detect port from config if not specified
+if ($Port -eq 0) {
+    $Port = Get-ConfigPort -ConfigPath $Config
+}
 
 $PROJECT_NAME = "pocketconcierge"
 
