@@ -1,0 +1,78 @@
+# Multi-architecture Dockerfile for PocketConcierge
+# Supports amd64, arm64, arm/v7
+
+# Build stage
+FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache git ca-certificates tzdata
+
+# Set working directory
+WORKDIR /app
+
+# Arguments for cross-compilation
+ARG TARGETOS
+ARG TARGETARCH
+ARG TARGETVARIANT
+
+# Copy go mod files
+COPY go.mod go.sum ./
+
+# Download dependencies
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the application for target platform
+ARG VERSION=v0.1.0-dev
+ARG BUILD_TIME
+ARG GIT_COMMIT
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
+    -ldflags "-w -s -X main.Version=${VERSION} -X main.BuildTime=${BUILD_TIME} -X main.GitCommit=${GIT_COMMIT}" \
+    -o pocketconcierge ./cmd/pocketconcierge/main.go
+
+# Final stage
+FROM alpine:latest
+
+# Install runtime dependencies
+RUN apk --no-cache add ca-certificates tzdata bind-tools
+
+# Create non-root user
+RUN addgroup -g 1001 -S pocketconcierge && \
+    adduser -u 1001 -S pocketconcierge -G pocketconcierge
+
+# Set working directory
+WORKDIR /app
+
+# Copy binary from builder stage
+COPY --from=builder /app/pocketconcierge .
+
+# Copy configuration files
+COPY --from=builder /app/config.yaml .
+COPY --from=builder /app/configs/example.yaml ./configs/
+
+# Change ownership to non-root user
+RUN chown -R pocketconcierge:pocketconcierge /app
+
+# Switch to non-root user
+USER pocketconcierge
+
+# Expose DNS port
+EXPOSE 8053/udp
+EXPOSE 8053/tcp
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD sh -c "echo 'google.com' | nslookup -port=8053 - 127.0.0.1 >/dev/null 2>&1" || exit 1
+
+# Add labels for better maintainability
+LABEL org.opencontainers.image.title="PocketConcierge DNS Server"
+LABEL org.opencontainers.image.description="A modern DNS server for home networks"
+LABEL org.opencontainers.image.version="${VERSION}"
+LABEL org.opencontainers.image.source="https://github.com/risadams/Pocket-Concierge"
+LABEL org.opencontainers.image.licenses="MIT"
+
+# Set default command
+ENTRYPOINT ["./pocketconcierge"]
+CMD ["/app/config.yaml"]

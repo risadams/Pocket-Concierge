@@ -1,0 +1,28 @@
+services:
+  pocketconcierge-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${VERSION:-dev}
+        BUILD_TIME: ${BUILD_TIME:-2025-06-30T12:00:00Z}
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+    image: pocketconcierge:dev
+    container_name: pocketconcierge-dev
+    ports:
+      - "8053:8053/udp"
+      - "8053:8053/tcp"
+    volumes:
+      # Mount main config for development
+      - ./config.yaml:/app/config.yaml:ro
+      # Mount source code for development (optional)
+      # - ./:/app:ro
+    environment:
+      - TZ=UTC
+      - ENV=development
+    healthcheck:
+      test: ["CMD", "dig", "@127.0.0.1", "-p", "8053", "google.com", "+short"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

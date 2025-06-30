@@ -39,4 +39,5 @@ go.work.sum
 
 # config
 config.yaml
+config.docker.yaml
 *.log

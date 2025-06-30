@@ -1,0 +1,38 @@
+# Build artifacts
+build/
+dist/
+*.exe
+
+# Development files
+.git/
+.gitignore
+.github/
+.vscode/
+.env
+
+# Test files
+coverage.out
+coverage.html
+test-dns.go
+
+# Documentation
+docs/
+*.md
+LICENSE
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# IDE files
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+
+# Logs
+*.log

@@ -8,6 +8,12 @@ VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "v0.
 BUILD_TIME := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
+# Docker parameters
+DOCKER_IMAGE := $(PROJECT_NAME)
+DOCKER_TAG := $(VERSION)
+DOCKER_REGISTRY := # Set this for your registry, e.g., docker.io/username
+DOCKER_FULL_IMAGE := $(if $(DOCKER_REGISTRY),$(DOCKER_REGISTRY)/,)$(DOCKER_IMAGE):$(DOCKER_TAG)
+
 # Go parameters
 GOCMD := go
 GOBUILD := $(GOCMD) build
@@ -89,6 +95,181 @@ build-all: ## Build binaries for all platforms
 		@echo "Building for Linux (arm64)..."
 		GOOS=linux GOARCH=arm64 $(GOBUILD) $(BUILD_FLAGS) -o $(DIST_DIR)/$(BINARY_NAME)-linux-arm64 $(CMD_DIR)/$(PROJECT_NAME)/main.go
 		@echo "✅ All builds complete!"
+
+## Docker Commands
+
+.PHONY: docker-build
+docker-build: ## Build Docker image
+		@echo "🐳 Building Docker image $(DOCKER_FULL_IMAGE)..."
+		docker build \
+			--build-arg VERSION=$(VERSION) \
+			--build-arg BUILD_TIME=$(BUILD_TIME) \
+			--build-arg GIT_COMMIT=$(GIT_COMMIT) \
+			-t $(DOCKER_FULL_IMAGE) \
+			-t $(DOCKER_IMAGE):latest \
+			.
+
+.PHONY: docker-build-no-cache
+docker-build-no-cache: ## Build Docker image without cache
+		@echo "🐳 Building Docker image $(DOCKER_FULL_IMAGE) (no cache)..."
+		docker build --no-cache \
+			--build-arg VERSION=$(VERSION) \
+			--build-arg BUILD_TIME=$(BUILD_TIME) \
+			--build-arg GIT_COMMIT=$(GIT_COMMIT) \
+			-t $(DOCKER_FULL_IMAGE) \
+			-t $(DOCKER_IMAGE):latest \
+			.
+
+.PHONY: docker-run
+docker-run: ## Run Docker container with default config
+		@echo "🚀 Running $(DOCKER_IMAGE):latest..."
+		docker run --rm -it \
+			-p 8053:8053/udp \
+			-p 8053:8053/tcp \
+			--name $(PROJECT_NAME) \
+			$(DOCKER_IMAGE):latest
+
+.PHONY: docker-run-daemon
+docker-run-daemon: ## Run Docker container as daemon
+		@echo "🚀 Starting $(DOCKER_IMAGE):latest as daemon..."
+		docker run -d \
+			-p 8053:8053/udp \
+			-p 8053:8053/tcp \
+			--name $(PROJECT_NAME) \
+			--restart unless-stopped \
+			$(DOCKER_IMAGE):latest
+
+.PHONY: docker-run-custom
+docker-run-custom: ## Run Docker container with custom config (CONFIG=path/to/config.yaml)
+		@echo "🚀 Running $(DOCKER_IMAGE):latest with custom config..."
+		docker run --rm -it \
+			-p 8053:8053/udp \
+			-p 8053:8053/tcp \
+			-v "$(shell pwd)/$(CONFIG):/app/config.yaml:ro" \
+			--name $(PROJECT_NAME) \
+			$(DOCKER_IMAGE):latest
+
+.PHONY: docker-stop
+docker-stop: ## Stop Docker container
+		@echo "🛑 Stopping $(PROJECT_NAME) container..."
+		docker stop $(PROJECT_NAME) || true
+
+.PHONY: docker-logs
+docker-logs: ## Show Docker container logs
+		@echo "📋 Showing logs for $(PROJECT_NAME)..."
+		docker logs -f $(PROJECT_NAME)
+
+.PHONY: docker-shell
+docker-shell: ## Open shell in Docker container
+		@echo "🐚 Opening shell in $(DOCKER_IMAGE):latest..."
+		docker run --rm -it \
+			--entrypoint /bin/sh \
+			$(DOCKER_IMAGE):latest
+
+.PHONY: docker-push
+docker-push: ## Push Docker image to registry
+		@echo "📤 Pushing $(DOCKER_FULL_IMAGE) to registry..."
+		@if [ -z "$(DOCKER_REGISTRY)" ]; then \
+			echo "❌ DOCKER_REGISTRY not set. Use: make docker-push DOCKER_REGISTRY=your-registry.com/username"; \
+			exit 1; \
+		fi
+		docker push $(DOCKER_FULL_IMAGE)
+		docker push $(if $(DOCKER_REGISTRY),$(DOCKER_REGISTRY)/,)$(DOCKER_IMAGE):latest
+
+.PHONY: docker-clean
+docker-clean: ## Remove Docker images and containers
+		@echo "🧹 Cleaning Docker artifacts..."
+		docker rm -f $(PROJECT_NAME) 2>/dev/null || true
+		docker rmi $(DOCKER_IMAGE):latest $(DOCKER_FULL_IMAGE) 2>/dev/null || true
+
+.PHONY: docker-inspect
+docker-inspect: ## Inspect Docker image
+		@echo "🔍 Inspecting $(DOCKER_IMAGE):latest..."
+		docker inspect $(DOCKER_IMAGE):latest
+
+.PHONY: docker-all
+docker-all: docker-build docker-run ## Build and run Docker container
+
+.PHONY: docker-buildx-setup
+docker-buildx-setup: ## Set up Docker buildx for multi-architecture builds
+		@echo "🔧 Setting up Docker buildx..."
+		docker buildx create --name $(PROJECT_NAME)-builder --use || true
+		docker buildx inspect --bootstrap
+
+.PHONY: docker-buildx-multiarch
+docker-buildx-multiarch: ## Build multi-architecture Docker images
+		@echo "🐳 Building multi-architecture Docker images..."
+		docker buildx build \
+			--platform linux/amd64,linux/arm64,linux/arm/v7 \
+			--build-arg VERSION=$(VERSION) \
+			--build-arg BUILD_TIME=$(BUILD_TIME) \
+			--build-arg GIT_COMMIT=$(GIT_COMMIT) \
+			-f Dockerfile.multiarch \
+			-t $(DOCKER_FULL_IMAGE) \
+			-t $(DOCKER_IMAGE):latest \
+			--push \
+			.
+
+.PHONY: docker-buildx-local
+docker-buildx-local: ## Build multi-architecture images locally (no push)
+		@echo "🐳 Building multi-architecture Docker images locally..."
+		docker buildx build \
+			--platform linux/amd64,linux/arm64,linux/arm/v7 \
+			--build-arg VERSION=$(VERSION) \
+			--build-arg BUILD_TIME=$(BUILD_TIME) \
+			--build-arg GIT_COMMIT=$(GIT_COMMIT) \
+			-f Dockerfile.multiarch \
+			-t $(DOCKER_FULL_IMAGE) \
+			-t $(DOCKER_IMAGE):latest \
+			--load \
+			.
+
+## Docker Compose Commands
+
+.PHONY: compose-up
+compose-up: ## Start services with Docker Compose
+		@echo "🚀 Starting services with Docker Compose..."
+		VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) GIT_COMMIT=$(GIT_COMMIT) docker-compose up -d
+
+.PHONY: compose-up-build
+compose-up-build: ## Build and start services with Docker Compose
+		@echo "🔨 Building and starting services with Docker Compose..."
+		VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) GIT_COMMIT=$(GIT_COMMIT) docker-compose up -d --build
+
+.PHONY: compose-down
+compose-down: ## Stop and remove Docker Compose services
+		@echo "🛑 Stopping Docker Compose services..."
+		docker-compose down
+
+.PHONY: compose-logs
+compose-logs: ## Show Docker Compose logs
+		@echo "📋 Showing Docker Compose logs..."
+		docker-compose logs -f
+
+.PHONY: compose-restart
+compose-restart: ## Restart Docker Compose services
+		@echo "🔄 Restarting Docker Compose services..."
+		docker-compose restart
+
+.PHONY: compose-clean
+compose-clean: ## Stop and remove Docker Compose services and volumes
+		@echo "🧹 Cleaning Docker Compose resources..."
+		docker-compose down -v --remove-orphans
+
+.PHONY: compose-dev
+compose-dev: ## Start development environment with Docker Compose
+		@echo "🚀 Starting development environment..."
+		VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) GIT_COMMIT=$(GIT_COMMIT) docker-compose -f docker-compose.dev.yml up -d --build
+
+.PHONY: compose-dev-logs
+compose-dev-logs: ## Show development environment logs
+		@echo "📋 Showing development logs..."
+		docker-compose -f docker-compose.dev.yml logs -f
+
+.PHONY: compose-dev-down
+compose-dev-down: ## Stop development environment
+		@echo "🛑 Stopping development environment..."
+		docker-compose -f docker-compose.dev.yml down
 
 ## Test Commands
 

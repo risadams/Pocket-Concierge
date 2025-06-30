@@ -1,0 +1,57 @@
+services:
+  pocketconcierge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${VERSION:-v0.1.0-dev}
+        BUILD_TIME: ${BUILD_TIME:-2025-06-30T12:00:00Z}
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+    image: pocketconcierge:latest
+    container_name: pocketconcierge
+    restart: unless-stopped
+    ports:
+      - "8053:8053/udp"
+      - "8053:8053/tcp"
+    volumes:
+      # Use main config file with 0.0.0.0 binding for Docker
+      - ./config.yaml:/app/config.yaml:ro
+    # volumes:
+      # Mount custom config if needed
+      # - ./config.yaml:/app/config.yaml:ro
+      # Mount logs directory (optional)
+      # - ./logs:/app/logs
+    environment:
+      - TZ=UTC
+    healthcheck:
+      test: ["CMD", "dig", "@127.0.0.1", "-p", "8053", "google.com", "+short"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    # Security options
+    user: "1001:1001"
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=50m
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+
+  # Optional: Monitoring with Prometheus metrics
+  # Uncomment if you add metrics endpoint to the application
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: prometheus
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+  #   command:
+  #     - '--config.file=/etc/prometheus/prometheus.yml'
+  #     - '--storage.tsdb.path=/prometheus'
+  #     - '--web.console.libraries=/etc/prometheus/console_libraries'
+  #     - '--web.console.templates=/etc/prometheus/consoles'
