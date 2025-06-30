@@ -97,15 +97,35 @@ test: ## Run all tests
 		@echo "🧪 Running tests..."
 		$(GOTEST) -v ./...
 
+.PHONY: test-short
+test-short: ## Run tests with short flag (skip integration tests)
+		@echo "🧪 Running short tests..."
+		$(GOTEST) -short -v ./...
+
 .PHONY: test-race
 test-race: ## Run tests with race detection
 		@echo "🏁 Running tests with race detection..."
 		$(GOTEST) -race -v ./...
 
-.PHONY: benchmark
-benchmark: ## Run DNS performance benchmark
-		@echo "📊 Running DNS benchmarks..."
-		$(GOCMD) run cmd/benchmark/main.go 127.0.0.1:8053 500 20 mixed
+.PHONY: test-integration
+test-integration: ## Run integration tests only
+		@echo "🔗 Running integration tests..."
+		$(GOTEST) -v ./test/...
+
+.PHONY: test-coverage
+test-coverage: ## Run tests with coverage report
+		@echo "📊 Running tests with coverage..."
+		$(GOTEST) -v -coverprofile=coverage.out ./...
+		$(GOCMD) tool cover -html=coverage.out -o coverage.html
+		@echo "📊 Coverage report generated: coverage.html"
+
+.PHONY: test-benchmark
+test-benchmark: ## Run Go benchmark tests
+		@echo "⚡ Running benchmark tests..."
+		$(GOTEST) -bench=. -benchmem ./...
+
+.PHONY: test-all
+test-all: test-short test-race test-coverage ## Run all test types
 
 ## Quality Commands
 
