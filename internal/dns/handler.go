@@ -34,6 +34,13 @@ func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	// Process all questions efficiently
 	for _, question := range r.Question {
+		// Check if domain is blocked
+		if h.config.IsBlocked(question.Name) {
+			// Return NXDOMAIN for blocked domains
+			response.Rcode = dns.RcodeNameError
+			continue
+		}
+
 		// Try high-speed local resolution first using pre-built records
 		if localAnswers := h.resolver.ResolveFast(question.Name, question.Qtype); len(localAnswers) > 0 {
 			response.Answer = append(response.Answer, localAnswers...)

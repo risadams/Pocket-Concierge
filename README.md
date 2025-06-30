@@ -9,7 +9,8 @@ A lightweight, high-performance DNS server designed specifically for home networ
 ## ✨ Features
 
 - **🏠 Local Host Resolution**: Configure custom hostnames for your home devices (e.g., `laptop.home`, `printer.home`)
-- **🔒 Secure DNS**: Support for DNS-over-HTTPS (DoH) and DNS-over-TLS (DoT) upstream resolvers
+- **🫸 Domain Blocking**: Block unwanted domains (ads, trackers, malware) with configurable block-lists
+- **🔐 Secure DNS**: Support for DNS-over-HTTPS (DoH) and DNS-over-TLS (DoT) upstream resolvers
 - **⚡ High Performance**: Built-in DNS caching with configurable cache size and TTL
 - **🔄 Smart Fallback**: Multiple upstream DNS servers with automatic failover
 - **📝 Easy Configuration**: Simple YAML configuration file
@@ -86,6 +87,10 @@ dns:
   ttl: 300
   enable_recursion: true
   cache_size: 10000
+  block_list:
+    - "ads.example.com"
+    - "tracker.badsite.com"
+    - "malware.evil.net"
 
 upstream:
   # DNS-over-HTTPS

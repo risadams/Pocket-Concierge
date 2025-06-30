@@ -23,6 +23,10 @@ dns:
   ttl: 300                      # Default TTL for responses in seconds
   enable_recursion: true        # Allow recursive queries
   cache_size: 10000             # Maximum number of cached entries
+  block_list:                   # Domains to block
+    - "ads.example.com"
+    - "tracker.badsite.org"
+    - "malware.evil.net"
 
 # Upstream DNS servers (in order of preference)
 upstream:
@@ -127,6 +131,7 @@ Controls DNS protocol behavior and caching.
 | `ttl` | integer | `300` | Default TTL (Time To Live) for DNS responses in seconds |
 | `enable_recursion` | boolean | `true` | Enable recursive DNS queries |
 | `cache_size` | integer | `10000` | Maximum number of entries in the DNS cache |
+| `block_list` | array | `[]` | List of domains to block (return NXDOMAIN) |
 
 **Examples:**
 
@@ -135,7 +140,28 @@ dns:
   ttl: 600                      # 10 minutes TTL
   enable_recursion: false       # Disable recursion (authoritative only)
   cache_size: 50000            # Larger cache for busy networks
+  block_list:                   # Block unwanted domains
+    - "ads.example.com"         # Block specific subdomain
+    - "tracker.badsite.org"     # Block tracking domains
+    - "malware.net"             # Block entire domain and all subdomains
 ```
+
+#### Block List Behavior
+
+The `block_list` feature allows you to prevent resolution of unwanted domains:
+
+- **Exact matches**: `"evil.com"` in the block list will block `evil.com`
+- **Subdomain blocking**: `"evil.com"` will also block `sub.evil.com`, `deep.sub.evil.com`, etc.
+- **Case insensitive**: Matching is performed in a case-insensitive manner
+- **NXDOMAIN response**: Blocked domains return a DNS NXDOMAIN (Name Error) response
+- **No upstream forwarding**: Blocked domains are not forwarded to upstream servers
+
+**Use cases:**
+
+- Ad blocking: Block advertising domains
+- Malware protection: Block known malicious domains  
+- Parental controls: Block inappropriate content domains
+- Privacy protection: Block tracking and analytics domains
 
 ### Upstream DNS Servers
 

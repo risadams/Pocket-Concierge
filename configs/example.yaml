@@ -6,6 +6,14 @@ dns:
   ttl: 300
   enable_recursion: true
   cache_size: 10000
+  # Domains in this list will fail to resolve (return NXDOMAIN)
+  # Useful for blocking ads, trackers, or malicious domains
+  block_list:
+    - "ads.example.com"
+    - "tracker.example.net"
+    - "malware.badsite.org"
+    # You can also block entire domains and their subdomains
+    - "evil.com"  # This will block evil.com, sub.evil.com, etc.
 
 upstream:
   # ControlD DNS-over-HTTPS

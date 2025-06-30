@@ -447,6 +447,79 @@ func TestConfigValidateUpstreamDefaults(t *testing.T) {
 	}
 }
 
+func TestConfigIsBlocked(t *testing.T) {
+	cfg := &Config{
+		DNS: DNSConfig{
+			BlockList: []string{
+				"blocked.example.com",
+				"evil.net",
+				"ads.tracker.org",
+			},
+		},
+	}
+
+	tests := []struct {
+		name     string
+		domain   string
+		expected bool
+	}{
+		{
+			name:     "exact match blocked",
+			domain:   "blocked.example.com",
+			expected: true,
+		},
+		{
+			name:     "exact match blocked with trailing dot",
+			domain:   "blocked.example.com.",
+			expected: true,
+		},
+		{
+			name:     "subdomain of blocked domain",
+			domain:   "sub.evil.net",
+			expected: true,
+		},
+		{
+			name:     "deep subdomain of blocked domain",
+			domain:   "deep.sub.evil.net",
+			expected: true,
+		},
+		{
+			name:     "subdomain with trailing dot",
+			domain:   "sub.ads.tracker.org.",
+			expected: true,
+		},
+		{
+			name:     "not blocked domain",
+			domain:   "good.example.com",
+			expected: false,
+		},
+		{
+			name:     "partial match should not block",
+			domain:   "notevil.net",
+			expected: false,
+		},
+		{
+			name:     "similar but not subdomain",
+			domain:   "evil.network",
+			expected: false,
+		},
+		{
+			name:     "empty domain",
+			domain:   "",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := cfg.IsBlocked(tt.domain)
+			if result != tt.expected {
+				t.Errorf("IsBlocked(%q) = %v, expected %v", tt.domain, result, tt.expected)
+			}
+		})
+	}
+}
+
 func BenchmarkLoadConfig(b *testing.B) {
 	configYAML := `
 server:
