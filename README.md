@@ -1,5 +1,9 @@
 # 🏨 Pocket Concierge
 
+<p align="center">
+  <img src="docs/logo.png" alt="Pocket Concierge Logo" width="450" />
+</p>
+
 A lightweight, high-performance DNS server designed specifically for home networks. Pocket Concierge acts as your personal network concierge, providing local hostname resolution, DNS caching, and secure upstream DNS forwarding with support for DNS-over-HTTPS (DoH) and DNS-over-TLS (DoT).
 
 ## ✨ Features
