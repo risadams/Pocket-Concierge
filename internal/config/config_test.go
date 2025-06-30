@@ -508,6 +508,42 @@ func TestConfigIsBlocked(t *testing.T) {
 			domain:   "",
 			expected: false,
 		},
+		// Case-insensitive tests
+		{
+			name:     "uppercase exact match blocked",
+			domain:   "BLOCKED.EXAMPLE.COM",
+			expected: true,
+		},
+		{
+			name:     "mixed case exact match blocked",
+			domain:   "BlOcKeD.ExAmPlE.cOm",
+			expected: true,
+		},
+		{
+			name:     "uppercase subdomain of blocked domain",
+			domain:   "SUB.EVIL.NET",
+			expected: true,
+		},
+		{
+			name:     "mixed case subdomain of blocked domain",
+			domain:   "SuB.EvIl.NeT",
+			expected: true,
+		},
+		{
+			name:     "uppercase not blocked domain",
+			domain:   "GOOD.EXAMPLE.COM",
+			expected: false,
+		},
+		{
+			name:     "mixed case not blocked domain",
+			domain:   "GoOd.ExAmPlE.cOm",
+			expected: false,
+		},
+		{
+			name:     "case insensitive partial match should not block",
+			domain:   "NOTEVIL.NET",
+			expected: false,
+		},
 	}
 
 	for _, tt := range tests {

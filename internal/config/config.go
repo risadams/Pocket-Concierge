@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -241,14 +242,20 @@ func (c *Config) IsBlocked(domain string) bool {
 		domain = domain[:len(domain)-1]
 	}
 
+	// Convert to lowercase for case-insensitive comparison
+	domain = strings.ToLower(domain)
+
 	for _, blocked := range c.DNS.BlockList {
-		if domain == blocked {
+		// Convert blocked domain to lowercase for case-insensitive comparison
+		blockedLower := strings.ToLower(blocked)
+
+		if domain == blockedLower {
 			return true
 		}
 		// Also check if it's a subdomain of a blocked domain
 		// e.g., if "example.com" is blocked, "sub.example.com" should also be blocked
-		if len(domain) > len(blocked) && domain[len(domain)-len(blocked)-1] == '.' &&
-			domain[len(domain)-len(blocked):] == blocked {
+		if len(domain) > len(blockedLower) && domain[len(domain)-len(blockedLower)-1] == '.' &&
+			domain[len(domain)-len(blockedLower):] == blockedLower {
 			return true
 		}
 	}
