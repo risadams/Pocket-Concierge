@@ -9,6 +9,10 @@
 *.dylib
 
 # Pocket Concierge specific binaries
+# and build artifacts
+build/
+dist/
+test/
 pocketconcierge
 pocketconcierge.exe
 
