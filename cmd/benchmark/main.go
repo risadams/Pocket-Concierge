@@ -136,15 +136,15 @@ func getTestQueries(testType string) []string {
 	switch testType {
 	case "local":
 		return []string{
-			"ris-desktop.home",
-			"ris-laptop.home",
-			"homeserver.home",
-			"nas.home",
-			"ipv6-only.home",
-			"router.home",
-			"printer.home",
-			"camera.home",
-			"switch.home",
+			"ris-desktop.tuesday.local",
+			"ris-laptop.tuesday.local",
+			"homeserver.tuesday.local",
+			"nas.tuesday.local",
+			"ipv6-only.tuesday.local",
+			"router.tuesday.local",
+			"printer.tuesday.local",
+			"camera.tuesday.local",
+			"switch.tuesday.local",
 		}
 	case "upstream":
 		return []string{
@@ -161,15 +161,15 @@ func getTestQueries(testType string) []string {
 		}
 	case "mixed":
 		return []string{
-			"ris-desktop.home",
+			"ris-desktop.tuesday.local",
 			"google.com",
-			"ris-laptop.home",
+			"ris-laptop.tuesday.local",
 			"github.com",
-			"homeserver.home",
+			"homeserver.tuesday.local",
 			"stackoverflow.com",
-			"nas.home",
+			"nas.tuesday.local",
 			"reddit.com",
-			"router.home",
+			"router.tuesday.local",
 			"youtube.com",
 		}
 	case "baseline":
