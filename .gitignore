@@ -13,8 +13,6 @@
 build/
 dist/
 test/
-pocketconcierge
-pocketconcierge.exe
 
 # Test binary, built with `go test -c`
 *.test
