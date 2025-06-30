@@ -346,6 +346,96 @@ func TestHandlerRecursionDisabled(t *testing.T) {
 	}
 }
 
+func TestHandlerServeDNSBlockList(t *testing.T) {
+	cfg := &config.Config{
+		HomeDNSDomain: "home",
+		Hosts: []config.HostEntry{
+			{
+				Hostname: "allowed.home",
+				IPv4:     []string{"192.168.1.100"},
+			},
+		},
+		DNS: config.DNSConfig{
+			TTL:             300,
+			EnableRecursion: false,
+			BlockList: []string{
+				"blocked.example.com",
+				"evil.net",
+			},
+		},
+	}
+
+	handler := NewHandler(cfg)
+	writer := &MockResponseWriter{}
+
+	tests := []struct {
+		name         string
+		domain       string
+		expectedCode int
+		description  string
+	}{
+		{
+			name:         "blocked domain exact match",
+			domain:       "blocked.example.com.",
+			expectedCode: dns.RcodeNameError,
+			description:  "Should return NXDOMAIN for blocked domain",
+		},
+		{
+			name:         "blocked subdomain",
+			domain:       "sub.evil.net.",
+			expectedCode: dns.RcodeNameError,
+			description:  "Should return NXDOMAIN for subdomain of blocked domain",
+		},
+		{
+			name:         "allowed domain",
+			domain:       "allowed.home.",
+			expectedCode: dns.RcodeSuccess,
+			description:  "Should resolve normally for allowed domain",
+		},
+		{
+			name:         "non-blocked domain",
+			domain:       "google.com.",
+			expectedCode: dns.RcodeSuccess,
+			description:  "Should not block non-listed domain (though no answer without recursion)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Reset writer
+			writer.responses = nil
+
+			// Create query
+			query := &dns.Msg{}
+			query.SetQuestion(tt.domain, dns.TypeA)
+			query.Id = 12345
+
+			// Execute handler
+			handler.ServeDNS(writer, query)
+
+			// Check we got a response
+			if len(writer.responses) == 0 {
+				t.Fatal("No response received")
+			}
+
+			response := writer.responses[0]
+
+			// Check response code
+			if response.Rcode != tt.expectedCode {
+				t.Errorf("Expected response code %d (%s), got %d (%s). %s",
+					tt.expectedCode, dns.RcodeToString[tt.expectedCode],
+					response.Rcode, dns.RcodeToString[response.Rcode],
+					tt.description)
+			}
+
+			// For blocked domains, ensure no answers are provided
+			if tt.expectedCode == dns.RcodeNameError && len(response.Answer) > 0 {
+				t.Errorf("Expected no answers for blocked domain, got %d answers", len(response.Answer))
+			}
+		})
+	}
+}
+
 func BenchmarkHandlerServeDNS(b *testing.B) {
 	cfg := &config.Config{
 		HomeDNSDomain: "home",

@@ -27,9 +27,10 @@ type ServerConfig struct {
 
 // DNSConfig defines DNS-specific settings
 type DNSConfig struct {
-	TTL             int  `yaml:"ttl"`
-	EnableRecursion bool `yaml:"enable_recursion"`
-	CacheSize       int  `yaml:"cache_size"`
+	TTL             int      `yaml:"ttl"`
+	EnableRecursion bool     `yaml:"enable_recursion"`
+	CacheSize       int      `yaml:"cache_size"`
+	BlockList       []string `yaml:"block_list,omitempty"`
 }
 
 type UpstreamServer struct {
@@ -59,6 +60,7 @@ func DefaultConfig() *Config {
 			TTL:             300, // 5 minutes
 			EnableRecursion: true,
 			CacheSize:       1000,
+			BlockList:       []string{}, // Empty by default
 		},
 		Upstream: []UpstreamServer{
 			{
@@ -230,4 +232,25 @@ func (c *Config) GetHostByName(hostname string) (*HostEntry, bool) {
 		}
 	}
 	return nil, false
+}
+
+// IsBlocked checks if a domain should be blocked
+func (c *Config) IsBlocked(domain string) bool {
+	// Remove trailing dot if present (normalize domain)
+	if len(domain) > 0 && domain[len(domain)-1] == '.' {
+		domain = domain[:len(domain)-1]
+	}
+
+	for _, blocked := range c.DNS.BlockList {
+		if domain == blocked {
+			return true
+		}
+		// Also check if it's a subdomain of a blocked domain
+		// e.g., if "example.com" is blocked, "sub.example.com" should also be blocked
+		if len(domain) > len(blocked) && domain[len(domain)-len(blocked)-1] == '.' &&
+			domain[len(domain)-len(blocked):] == blocked {
+			return true
+		}
+	}
+	return false
 }
